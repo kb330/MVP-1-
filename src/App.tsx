@@ -15,8 +15,12 @@ import {
   CheckCircle2,
   ShieldAlert,
   TrendingUp,
+  Sparkles,
+  Loader2,
+  BrainCircuit
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleGenAI, Type } from "@google/genai";
 
 // --- Types ---
 interface Contract {
@@ -26,6 +30,16 @@ interface Contract {
   yield: number;
   status: 'Active' | 'Pending' | 'High Risk';
   event: string;
+}
+
+interface AIRecommendation {
+  asset: string;
+  question: string;
+  recommendations: {
+    buy: string;
+    sell: string;
+    hold: string;
+  };
 }
 
 // --- Constants ---
@@ -43,6 +57,9 @@ const TICKER_ITEMS = [
   "Opta Feed LIVE", "PL Risk Index: 24.7", "USDC/USD 1.0001",
   "ELO Model v3.2 ACTIVE", "USD/EUR 0.9218"
 ];
+
+// --- AI Initialization ---
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 // --- Components ---
 
@@ -74,10 +91,14 @@ const MetricCard = ({ title, value, sub, delta, colorClass, delay = 0, icon: Ico
 
 export default function App() {
   const [isRfqOpen, setIsRfqOpen] = useState(false);
+  const [isAiOpen, setIsAiOpen] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [rfqRef, setRfqRef] = useState('');
   const [settlementType, setSettlementType] = useState<'fiat' | 'crypto'>('fiat');
   const [time, setTime] = useState(new Date().toUTCString().split(' ')[4]);
+  
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiRecommendation, setAiRecommendation] = useState<AIRecommendation | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -97,6 +118,44 @@ export default function App() {
     }, 3000);
   };
 
+  const generateAiRecommendation = async () => {
+    setAiLoading(true);
+    setIsAiOpen(true);
+    try {
+      const response = await genAI.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: "You are an institutional sports risk AI advisor. Generate a recommendation for a random sports asset (e.g., a football club's relegation hedge, a trophy bonus contract, or a specific league's risk index). Provide a 'Buy', 'Sell', and 'Hold' recommendation with a professional, data-driven reason for each. Return the response in JSON format.",
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              asset: { type: Type.STRING, description: "The name of the sports asset" },
+              question: { type: Type.STRING, description: "The investment question, e.g., 'Should I invest in Premier League Relegation Swaps?'" },
+              recommendations: {
+                type: Type.OBJECT,
+                properties: {
+                  buy: { type: Type.STRING, description: "Reason to buy" },
+                  sell: { type: Type.STRING, description: "Reason to sell" },
+                  hold: { type: Type.STRING, description: "Reason to hold" }
+                },
+                required: ["buy", "sell", "hold"]
+              }
+            },
+            required: ["asset", "question", "recommendations"]
+          }
+        }
+      });
+
+      const data = JSON.parse(response.text || '{}');
+      setAiRecommendation(data);
+    } catch (error) {
+      console.error("AI Recommendation Error:", error);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Top Nav */}
@@ -110,6 +169,13 @@ export default function App() {
           </span>
         </div>
         <div className="flex items-center gap-4">
+          <button 
+            onClick={generateAiRecommendation}
+            className="flex items-center gap-2 bg-accent-cyan/10 border border-accent-cyan/30 rounded-sm px-3 py-1.5 text-[11px] font-mono text-accent-cyan hover:bg-accent-cyan/20 transition-all"
+          >
+            <Sparkles size={14} className="animate-pulse" />
+            AI Recommendation
+          </button>
           <div className="bg-accent-cyan/10 border border-accent-cyan/30 rounded-sm px-3 py-1.5 flex items-center gap-2 text-[11px] font-mono text-accent-cyan">
             <Wallet size={14} />
             <span className="opacity-60">ETH:</span> 0x71C...3F4
@@ -149,6 +215,12 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2.5 px-4 py-2.5 cursor-pointer text-text-muted hover:text-text-primary hover:bg-white/5 text-xs font-medium transition-colors">
             <Wallet size={14} /> Digital Wallet
+          </div>
+          <div 
+            onClick={generateAiRecommendation}
+            className="flex items-center gap-2.5 px-4 py-2.5 cursor-pointer text-accent-amber hover:bg-accent-amber/5 text-xs font-medium transition-colors"
+          >
+            <BrainCircuit size={14} /> AI Advisor
           </div>
         </nav>
 
@@ -283,6 +355,92 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* AI Recommendation Modal */}
+      <AnimatePresence>
+        {isAiOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAiOpen(false)}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: -20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -20 }}
+              className="relative w-full max-w-lg bg-bg-elevated border border-accent-amber rounded-sm shadow-[0_0_60px_rgba(255,184,0,0.15)] overflow-hidden"
+            >
+              <div className="h-1 bg-gradient-to-r from-accent-amber via-[#CC9000] to-transparent" />
+              <div className="flex items-center justify-between p-5 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-accent-amber" />
+                  <h3 className="font-display text-[13px] tracking-widest uppercase text-accent-amber">AI Institutional Advisor</h3>
+                </div>
+                <button onClick={() => setIsAiOpen(false)} className="text-text-muted hover:text-accent-red transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6">
+                {aiLoading ? (
+                  <div className="py-12 text-center space-y-4">
+                    <Loader2 size={40} className="text-accent-amber animate-spin mx-auto" />
+                    <p className="font-mono text-xs text-text-muted animate-pulse">Analyzing market indices and ELO models...</p>
+                  </div>
+                ) : aiRecommendation ? (
+                  <div className="space-y-6">
+                    <div>
+                      <div className="text-[10px] tracking-widest uppercase text-text-muted mb-1 font-mono">Target Asset</div>
+                      <div className="text-lg font-display font-bold text-text-primary tracking-tight">{aiRecommendation.asset}</div>
+                      <div className="text-xs text-accent-cyan font-mono mt-1 italic">"{aiRecommendation.question}"</div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="bg-bg-primary/40 border border-accent-green/20 p-4 rounded-sm group hover:border-accent-green transition-colors">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent-green shadow-[0_0_5px_#00E87A]" />
+                          <span className="text-[10px] font-bold tracking-widest uppercase text-accent-green">BUY</span>
+                        </div>
+                        <p className="text-xs text-text-primary leading-relaxed opacity-80">{aiRecommendation.recommendations.buy}</p>
+                      </div>
+
+                      <div className="bg-bg-primary/40 border border-accent-red/20 p-4 rounded-sm group hover:border-accent-red transition-colors">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent-red shadow-[0_0_5px_#FF4444]" />
+                          <span className="text-[10px] font-bold tracking-widest uppercase text-accent-red">SELL</span>
+                        </div>
+                        <p className="text-xs text-text-primary leading-relaxed opacity-80">{aiRecommendation.recommendations.sell}</p>
+                      </div>
+
+                      <div className="bg-bg-primary/40 border border-accent-amber/20 p-4 rounded-sm group hover:border-accent-amber transition-colors">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent-amber shadow-[0_0_5px_#FFB800]" />
+                          <span className="text-[10px] font-bold tracking-widest uppercase text-accent-amber">HOLD</span>
+                        </div>
+                        <p className="text-xs text-text-primary leading-relaxed opacity-80">{aiRecommendation.recommendations.hold}</p>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={generateAiRecommendation}
+                      className="w-full bg-accent-amber/10 border border-accent-amber/30 text-accent-amber font-display font-bold text-[10px] tracking-[0.2em] uppercase py-3 rounded-sm hover:bg-accent-amber/20 transition-all"
+                    >
+                      Generate New Recommendation
+                    </button>
+                  </div>
+                ) : (
+                  <div className="py-8 text-center">
+                    <p className="text-xs text-text-muted">Failed to load AI recommendation. Please check your API key.</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* RFQ Modal */}
       <AnimatePresence>

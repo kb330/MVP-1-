@@ -6,26 +6,27 @@
   --font-display: "Chakra Petch", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-bg-primary: #060B16;
-  --color-bg-card: #0B1322;
-  --color-bg-elevated: #0F1A2E;
-  --color-accent-cyan: #00CFFF;
+  --color-bg-primary: #1A0B10;
+  --color-bg-card: #2D141D;
+  --color-bg-elevated: #3D1B27;
+  --color-accent-cyan: #FF69B4; /* Hot Pink */
+  --color-accent-pink: #FFB6C1; /* Light Pink */
   --color-accent-green: #00E87A;
-  --color-accent-amber: #FFB800;
-  --color-accent-red: #FF4444;
-  --color-text-primary: #D8ECFF;
-  --color-text-muted: #5A7A9F;
-  --color-border: #162236;
+  --color-accent-amber: #FFD700; /* Gold */
+  --color-accent-red: #D32F2F;   /* Festive Red */
+  --color-text-primary: #FFE4E1; /* Misty Rose */
+  --color-text-muted: #A07885;
+  --color-border: #4D2634;
 }
 
 @layer base {
   body {
     @apply bg-bg-primary text-text-primary font-sans antialiased;
-    background-image: radial-gradient(circle, rgba(0,207,255,0.06) 1px, transparent 1px);
+    background-image: radial-gradient(circle, rgba(255,105,180,0.08) 1px, transparent 1px);
     background-size: 28px 28px;
   }
 
-  /* Scanline effect */
+  /* Scanline effect with a pink tint */
   body::after {
     content: '';
     @apply fixed inset-0 pointer-events-none z-50;
@@ -33,10 +34,19 @@
       to bottom,
       rgba(0,0,0,0) 0px,
       rgba(0,0,0,0) 1px,
-      rgba(0,0,0,0.07) 1px,
-      rgba(0,0,0,0.07) 2px
+      rgba(255,105,180,0.03) 1px,
+      rgba(255,105,180,0.03) 2px
     );
   }
+}
+
+@keyframes float-lantern {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(2deg); }
+}
+
+.animate-lantern {
+  animation: float-lantern 3s ease-in-out infinite;
 }
 
 @keyframes ticker-scroll {
